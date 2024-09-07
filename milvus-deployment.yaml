@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: milvus-standalone
+  namespace: milvus
+  labels:
+    app: milvus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: milvus
+  template:
+    metadata:
+      labels:
+        app: milvus
+    spec:
+      containers:
+        - name: milvus
+          image: milvusdb/milvus:v2.2.11
+          command:
+            - milvus
+            - run
+            - standalone
+          ports:
+            - containerPort: 19530
+            - containerPort: 9091
+          env:
+            - name: ETCD_ENDPOINTS
+              value: "etcd:2379"
+            - name: MINIO_ADDRESS
+              value: "minio:9000"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: milvus-standalone
+  namespace: milvus
+spec:
+  type: NodePort
+  ports:
+    - name: grpc
+      port: 19530
+      nodePort: 30003
+    - name: http
+      port: 9091
+      nodePort: 30004
+  selector:
+    app: milvus
