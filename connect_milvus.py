@@ -6,6 +6,7 @@ from pymilvus import (
     DataType,
     Collection,
 )
+import random
 
 # Connect to Milvus
 try:
@@ -24,9 +25,10 @@ fields = [
 schema = CollectionSchema(fields, description="hello_milvus is the simplest demo to introduce the APIs")
 
 # Check if the collection already exists
-collection_name = "hello_milvus22"
+collection_name = "hello_milvus"
 if utility.has_collection(collection_name):
     print(f"Collection {collection_name} already exists.")
+    hello_milvus = Collection(name=collection_name)
 else:
     # Create a new collection
     try:
@@ -35,3 +37,52 @@ else:
     except Exception as e:
         print(f"Error creating collection: {e}")
         exit(1)
+
+# Insert data
+data = [
+    [i for i in range(10)],  # primary key field: 10 int64 values
+    [random.random() for _ in range(10)],  # random field: 10 float values
+    [[random.random() for _ in range(8)] for _ in range(10)]  # embeddings field: 10 vectors, each with 8 dimensions
+]
+
+try:
+    insert_result = hello_milvus.insert(data)
+    print(f"Inserted data into {collection_name}. Insert result: {insert_result.primary_keys}")
+except Exception as e:
+    print(f"Error inserting data: {e}")
+    exit(1)
+
+# Flush the collection to ensure data persistence
+try:
+    hello_milvus.flush()
+    print(f"Flushed data for {collection_name}.")
+except Exception as e:
+    print(f"Error flushing data: {e}")
+    exit(1)
+
+# Create an index on the embeddings field
+try:
+    index_params = {
+        "index_type": "IVF_FLAT",
+        "params": {"nlist": 128},
+        "metric_type": "L2"
+    }
+    hello_milvus.create_index(field_name="embeddings", index_params=index_params)
+    print(f"Index created on collection {collection_name}.")
+except Exception as e:
+    print(f"Error creating index: {e}")
+    exit(1)
+
+# Load the collection into memory
+try:
+    hello_milvus.load()
+    print(f"Collection {collection_name} loaded into memory.")
+except Exception as e:
+    print(f"Error loading collection into memory: {e}")
+
+# Query the collection to retrieve inserted entities
+try:
+    results = hello_milvus.query(expr="pk >= 0", output_fields=["pk", "random", "embeddings"])
+    print(f"Queried entities: {results}")
+except Exception as e:
+    print(f"Error querying collection: {e}")
